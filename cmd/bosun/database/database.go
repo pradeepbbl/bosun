@@ -10,6 +10,7 @@ import (
 	"bosun.org/collect"
 	"bosun.org/metadata"
 	"bosun.org/opentsdb"
+	"bosun.org/slog"
 	"github.com/garyburd/redigo/redis"
 	"github.com/siddontang/ledisdb/config"
 	"github.com/siddontang/ledisdb/server"
@@ -68,10 +69,17 @@ func NewDataAccess(addr string, isRedis bool, redisDb int, redisPass string) Dat
 }
 
 func newDataAccess(addr string, isRedis bool, redisDb int, redisPass string) *dataAccess {
-	return &dataAccess{
+	d := &dataAccess{
 		pool:    newPool(addr, redisPass, redisDb, isRedis, 1000, true),
 		isRedis: isRedis,
 	}
+	go func(d *dataAccess) {
+		for {
+			slog.Info("redis pool active count: ", d.pool.ActiveCount())
+			time.Sleep(1 * time.Second)
+		}
+	}(d)
+	return d
 }
 
 // Start in-process ledis server. Data will go in the specified directory and it will bind to the given port.
