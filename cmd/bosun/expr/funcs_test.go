@@ -198,3 +198,52 @@ func TestTimedelta(t *testing.T) {
 		}
 	}
 }
+
+func TestAbs(t *testing.T) {
+	absSeries := `abs(series("key=a", 0, -1, 1, 1))`
+	absScalar := `abs(-5)`
+	absWrappedSeries := `avg(abs(series("key=a", 0, -1, 1, 1)))`
+	tests := []exprInOut{
+		{
+			absSeries,
+			Results{
+				Results: ResultSlice{
+					&Result{
+						Value: Series{
+							time.Unix(0, 0): 1,
+							time.Unix(1, 0): 1,
+						},
+						Group: opentsdb.TagSet{"key": "a"},
+					},
+				},
+			},
+		},
+		{
+			absScalar,
+			Results{
+				Results: ResultSlice{
+					&Result{
+						Value: Number(5),
+					},
+				},
+			},
+		},
+		{
+			absWrappedSeries,
+			Results{
+				Results: ResultSlice{
+					&Result{
+						Value: Number(1),
+						Group: opentsdb.TagSet{"key": "a"},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		err := testExpression(test)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}

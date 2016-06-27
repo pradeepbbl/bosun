@@ -718,7 +718,7 @@ func (e *State) walkFunc(node *parse.FuncNode, T miniprofiler.Timer) *Results {
 				panic(err)
 			}
 		}
-		if node.Return() == models.TypeNumberSet {
+		if node.Return() == models.TypeNumberSet && node.Name != "abs" {
 			for _, r := range res.Results {
 				e.AddComputation(r, node.String(), r.Value.(Number))
 			}

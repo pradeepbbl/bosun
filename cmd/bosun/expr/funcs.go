@@ -595,7 +595,16 @@ func reduce(e *State, T miniprofiler.Timer, series *Results, F func(Series, ...f
 
 func Abs(e *State, T miniprofiler.Timer, series *Results) *Results {
 	for _, s := range series.Results {
-		s.Value = Number(math.Abs(float64(s.Value.Value().(Number))))
+		seriesT := s.Value.Type()
+		if seriesT == models.TypeNumberSet || seriesT == models.TypeScalar {
+			s.Value = Number(math.Abs(float64(s.Value.Value().(Number))))
+			continue
+		}
+		absSeries := make(Series)
+		for k, v := range s.Value.Value().(Series) {
+			absSeries[k] = math.Abs(float64(v))
+		}
+		s.Value = absSeries
 	}
 	return series
 }

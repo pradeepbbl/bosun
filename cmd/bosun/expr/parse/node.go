@@ -25,6 +25,7 @@ type Node interface {
 	Position() Pos     // byte position of start of node in full original input string
 	Check(*Tree) error // performs type checking for itself and sub-nodes
 	Return() models.FuncType
+	ChangeReturn(models.FuncType)
 	Tags() (Tags, error)
 	// Make sure only functions in this package can create Nodes.
 	unexported()
@@ -66,9 +67,10 @@ const (
 type FuncNode struct {
 	NodeType
 	Pos
-	Name string
-	F    Func
-	Args []Node
+	Name            string
+	F               Func
+	Args            []Node
+	AlternateReturn *models.FuncType
 }
 
 func newFunc(pos Pos, name string, f Func) *FuncNode {
@@ -125,7 +127,22 @@ func (f *FuncNode) Check(t *Tree) error {
 			funcType = f.F.Args[i]
 		}
 		argType := arg.Return()
-		if funcType == models.TypeNumberSet && argType == models.TypeScalar {
+		if arg.Type() == NodeFunc {
+			next := arg.(*FuncNode)
+			if next.Name == "abs" {
+				switch next.Args[0].Return() {
+				case models.TypeNumberSet, models.TypeScalar:
+					if funcType != models.TypeNumberSet {
+						return fmt.Errorf("unexpected type .. ned more details here")
+					}
+					next.ChangeReturn(models.TypeNumberSet)
+				case models.TypeSeriesSet:
+					next.ChangeReturn(models.TypeSeriesSet)
+				default:
+					return fmt.Errorf("Invalid return type for abs")
+				}
+			}
+		} else if funcType == models.TypeNumberSet && argType == models.TypeScalar {
 			// Scalars are promoted to NumberSets during execution.
 		} else if funcType != argType {
 			return fmt.Errorf("parse: expected %v, got %v for argument %v (%v)", funcType, argType, i, arg.String())
@@ -141,7 +158,14 @@ func (f *FuncNode) Check(t *Tree) error {
 }
 
 func (f *FuncNode) Return() models.FuncType {
+	if f.AlternateReturn != nil {
+		return *f.AlternateReturn
+	}
 	return f.F.Return
+}
+
+func (f *FuncNode) ChangeReturn(m models.FuncType) {
+	f.AlternateReturn = &m
 }
 
 func (f *FuncNode) Tags() (Tags, error) {
@@ -210,6 +234,10 @@ func (n *NumberNode) Return() models.FuncType {
 	return models.TypeScalar
 }
 
+func (n *NumberNode) ChangeReturn(m models.FuncType) {
+	// No Op - Maybe should return error
+}
+
 func (n *NumberNode) Tags() (Tags, error) {
 	return nil, nil
 }
@@ -240,6 +268,10 @@ func (s *StringNode) Check(*Tree) error {
 
 func (s *StringNode) Return() models.FuncType {
 	return models.TypeString
+}
+
+func (f *StringNode) ChangeReturn(m models.FuncType) {
+	// Maybe Error?
 }
 
 func (s *StringNode) Tags() (Tags, error) {
@@ -305,6 +337,10 @@ func (b *BinaryNode) Return() models.FuncType {
 	return t0
 }
 
+func (f *BinaryNode) ChangeReturn(m models.FuncType) {
+	// Maybe Error
+}
+
 func (b *BinaryNode) Tags() (Tags, error) {
 	t, err := b.Args[0].Tags()
 	if err != nil {
@@ -350,6 +386,10 @@ func (u *UnaryNode) Return() models.FuncType {
 	return u.Arg.Return()
 }
 
+func (f *UnaryNode) ChangeReturn(m models.FuncType) {
+	// Maybe ERror
+}
+
 func (u *UnaryNode) Tags() (Tags, error) {
 	return u.Arg.Tags()
 }
@@ -362,6 +402,7 @@ func Walk(n Node, f func(Node)) {
 		Walk(n.Args[0], f)
 		Walk(n.Args[1], f)
 	case *FuncNode:
+		fmt.Println(n.Args)
 		for _, a := range n.Args {
 			Walk(a, f)
 		}
