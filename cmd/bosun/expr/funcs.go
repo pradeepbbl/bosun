@@ -338,7 +338,7 @@ func Map(e *State, T miniprofiler.Timer, series *Results, expr string) (*Results
 	for _, result := range series.Results {
 		newSeries := make(Series)
 		for t, v := range result.Value.Value().(Series) {
-			replacedExpr := strings.Replace(expr, `@t`, string(t.Unix()), -1)
+			replacedExpr := strings.Replace(expr, `@t`, fmt.Sprintf("%v", t.Unix()), -1)
 			replacedExpr = strings.Replace(replacedExpr, `@v`, fmt.Sprintf("%v", v), -1)
 			newExpr, err := New(replacedExpr, builtins)
 			if err != nil {
@@ -349,12 +349,17 @@ func Map(e *State, T miniprofiler.Timer, series *Results, expr string) (*Results
 				return series, err
 			}
 			for _, res := range subResults.Results {
-				if res.Type() != models.TypeScalar && res.Type() != models.TypeNumberSet {
-					return series, fmt.Errorf("wrong return type for map expr: %v", res.Type())
+				var v float64
+				switch res.Value.Value().(type) {
+					case Number:
+						v = float64(res.Value.Value().(Number))
+					case Scalar:
+						v = float64(res.Value.Value().(Scalar))
+					default:
+						return series, fmt.Errorf("wrong return type for map expr: %v", res.Type())
 				}
-				newSeries[t] = float64(res.Value.Value().(Number))
+				newSeries[t] = v
 			}
-
 		}
 		result.Value = newSeries
 	}
