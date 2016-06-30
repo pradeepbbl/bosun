@@ -326,24 +326,35 @@ func init() {
 			F:      TimeDelta,
 		},
 		"map": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
+			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeExpr},
 			Return: models.TypeSeriesSet,
 			Tags:   tagFirst,
 			F:      Map,
 		},
+		"v": {
+			Return:  models.TypeScalar,
+			F:       V,
+			MapFunc: true,
+		},
 	}
 }
 
-func Map(e *State, T miniprofiler.Timer, series *Results, expr string) (*Results, error) {
+func V(e *State, T miniprofiler.Timer) (*Results, error) {
+	return &Results{
+		Results: ResultSlice{
+			&Result{
+				Value: Scalar(e.vValue),
+			},
+		},
+	}, nil
+}
+
+func Map(e *State, T miniprofiler.Timer, series *Results, expr *Results) (*Results, error) {
+	newExpr := Expr{expr.Results[0].Value.Value().(SubExpr).Tree}
 	for _, result := range series.Results {
 		newSeries := make(Series)
 		for t, v := range result.Value.Value().(Series) {
-			replacedExpr := strings.Replace(expr, `@t`, fmt.Sprintf("%v", t.Unix()), -1)
-			replacedExpr = strings.Replace(replacedExpr, `@v`, fmt.Sprintf("%v", v), -1)
-			newExpr, err := New(replacedExpr, builtins)
-			if err != nil {
-				return series, err
-			}
+			e.vValue = v
 			subResults, _, err := newExpr.ExecuteState(e, T)
 			if err != nil {
 				return series, err
@@ -351,12 +362,12 @@ func Map(e *State, T miniprofiler.Timer, series *Results, expr string) (*Results
 			for _, res := range subResults.Results {
 				var v float64
 				switch res.Value.Value().(type) {
-					case Number:
-						v = float64(res.Value.Value().(Number))
-					case Scalar:
-						v = float64(res.Value.Value().(Scalar))
-					default:
-						return series, fmt.Errorf("wrong return type for map expr: %v", res.Type())
+				case Number:
+					v = float64(res.Value.Value().(Number))
+				case Scalar:
+					v = float64(res.Value.Value().(Scalar))
+				default:
+					return series, fmt.Errorf("wrong return type for map expr: %v", res.Type())
 				}
 				newSeries[t] = v
 			}
