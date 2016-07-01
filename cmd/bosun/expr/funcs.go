@@ -340,13 +340,7 @@ func init() {
 }
 
 func V(e *State, T miniprofiler.Timer) (*Results, error) {
-	return &Results{
-		Results: ResultSlice{
-			&Result{
-				Value: Scalar(e.vValue),
-			},
-		},
-	}, nil
+	return fromScalar(e.vValue), nil
 }
 
 func Map(e *State, T miniprofiler.Timer, series *Results, expr *Results) (*Results, error) {
