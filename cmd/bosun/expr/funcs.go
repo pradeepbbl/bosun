@@ -73,270 +73,266 @@ func tagRename(args []parse.Node) (parse.Tags, error) {
 	return tags, nil
 }
 
-var builtins map[string]parse.Func
+var builtins = map[string]parse.Func{
+	// Reduction functions
 
-func init() {
-	builtins = map[string]parse.Func{
-		// Reduction functions
+	"avg": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Avg,
+	},
+	"cCount": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      CCount,
+	},
+	"dev": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Dev,
+	},
+	"diff": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Diff,
+	},
+	"first": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      First,
+	},
+	"forecastlr": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Forecast_lr,
+	},
+	"linelr": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      Line_lr,
+	},
+	"last": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Last,
+	},
+	"len": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Length,
+	},
+	"max": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Max,
+	},
+	"median": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Median,
+	},
+	"min": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Min,
+	},
+	"percentile": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Percentile,
+	},
+	"since": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Since,
+	},
+	"sum": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Sum,
+	},
+	"streak": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Streak,
+	},
 
-		"avg": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Avg,
-		},
-		"cCount": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      CCount,
-		},
-		"dev": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Dev,
-		},
-		"diff": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Diff,
-		},
-		"first": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      First,
-		},
-		"forecastlr": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Forecast_lr,
-		},
-		"linelr": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      Line_lr,
-		},
-		"last": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Last,
-		},
-		"len": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Length,
-		},
-		"max": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Max,
-		},
-		"median": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Median,
-		},
-		"min": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Min,
-		},
-		"percentile": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Percentile,
-		},
-		"since": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Since,
-		},
-		"sum": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Sum,
-		},
-		"streak": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Streak,
-		},
+	// Group functions
+	"addtags": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
+		Return: models.TypeSeriesSet,
+		Tags:   tagRename,
+		F:      AddTags,
+	},
 
-		// Group functions
-		"addtags": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
-			Return: models.TypeSeriesSet,
-			Tags:   tagRename,
-			F:      AddTags,
-		},
+	"rename": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
+		Return: models.TypeSeriesSet,
+		Tags:   tagRename,
+		F:      Rename,
+	},
 
-		"rename": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
-			Return: models.TypeSeriesSet,
-			Tags:   tagRename,
-			F:      Rename,
-		},
+	"t": {
+		Args:   []models.FuncType{models.TypeNumberSet, models.TypeString},
+		Return: models.TypeSeriesSet,
+		Tags:   tagTranspose,
+		F:      Transpose,
+	},
+	"ungroup": {
+		Args:   []models.FuncType{models.TypeNumberSet},
+		Return: models.TypeScalar,
+		F:      Ungroup,
+	},
 
-		"t": {
-			Args:   []models.FuncType{models.TypeNumberSet, models.TypeString},
-			Return: models.TypeSeriesSet,
-			Tags:   tagTranspose,
-			F:      Transpose,
-		},
-		"ungroup": {
-			Args:   []models.FuncType{models.TypeNumberSet},
-			Return: models.TypeScalar,
-			F:      Ungroup,
-		},
+	// Other functions
 
-		// Other functions
-
-		"abs": {
-			Args:   []models.FuncType{models.TypeNumberSet},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Abs,
-		},
-		"d": {
-			Args:   []models.FuncType{models.TypeString},
-			Return: models.TypeScalar,
-			F:      Duration,
-		},
-		"tod": {
-			Args:   []models.FuncType{models.TypeScalar},
-			Return: models.TypeString,
-			F:      ToDuration,
-		},
-		"des": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeScalar, models.TypeScalar},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      Des,
-		},
-		"dropge": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      DropGe,
-		},
-		"dropg": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      DropG,
-		},
-		"drople": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      DropLe,
-		},
-		"dropl": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      DropL,
-		},
-		"dropna": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      DropNA,
-		},
-		"dropbool": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeSeriesSet},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      DropBool,
-		},
-		"epoch": {
-			Args:   []models.FuncType{},
-			Return: models.TypeScalar,
-			F:      Epoch,
-		},
-		"filter": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      Filter,
-		},
-		"limit": {
-			Args:   []models.FuncType{models.TypeNumberSet, models.TypeScalar},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Limit,
-		},
-		"nv": {
-			Args:   []models.FuncType{models.TypeNumberSet, models.TypeScalar},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      NV,
-		},
-		"series": {
-			Args:      []models.FuncType{models.TypeString, models.TypeScalar},
-			VArgs:     true,
-			VArgsPos:  1,
-			VArgsOmit: true,
-			Return:    models.TypeSeriesSet,
-			Tags:      tagFirst,
-			F:         SeriesFunc,
-		},
-		"sort": {
-			Args:   []models.FuncType{models.TypeNumberSet, models.TypeString},
-			Return: models.TypeNumberSet,
-			Tags:   tagFirst,
-			F:      Sort,
-		},
-		"shift": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      Shift,
-		},
-		"merge": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			VArgs:  true,
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      Merge,
-		},
-		"month": {
-			Args:   []models.FuncType{models.TypeScalar, models.TypeString},
-			Return: models.TypeScalar,
-			F:      Month,
-		},
-		"timedelta": {
-			Args:   []models.FuncType{models.TypeSeriesSet},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      TimeDelta,
-		},
-		"map": {
-			Args:   []models.FuncType{models.TypeSeriesSet, models.TypeExpr},
-			Return: models.TypeSeriesSet,
-			Tags:   tagFirst,
-			F:      Map,
-		},
-		"v": {
-			Return:  models.TypeScalar,
-			F:       V,
-			MapFunc: true,
-		},
-	}
+	"abs": {
+		Args:   []models.FuncType{models.TypeNumberSet},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Abs,
+	},
+	"d": {
+		Args:   []models.FuncType{models.TypeString},
+		Return: models.TypeScalar,
+		F:      Duration,
+	},
+	"tod": {
+		Args:   []models.FuncType{models.TypeScalar},
+		Return: models.TypeString,
+		F:      ToDuration,
+	},
+	"des": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeScalar, models.TypeScalar},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      Des,
+	},
+	"dropge": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      DropGe,
+	},
+	"dropg": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      DropG,
+	},
+	"drople": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      DropLe,
+	},
+	"dropl": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      DropL,
+	},
+	"dropna": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      DropNA,
+	},
+	"dropbool": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeSeriesSet},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      DropBool,
+	},
+	"epoch": {
+		Args:   []models.FuncType{},
+		Return: models.TypeScalar,
+		F:      Epoch,
+	},
+	"filter": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeNumberSet},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      Filter,
+	},
+	"limit": {
+		Args:   []models.FuncType{models.TypeNumberSet, models.TypeScalar},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Limit,
+	},
+	"nv": {
+		Args:   []models.FuncType{models.TypeNumberSet, models.TypeScalar},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      NV,
+	},
+	"series": {
+		Args:      []models.FuncType{models.TypeString, models.TypeScalar},
+		VArgs:     true,
+		VArgsPos:  1,
+		VArgsOmit: true,
+		Return:    models.TypeSeriesSet,
+		Tags:      tagFirst,
+		F:         SeriesFunc,
+	},
+	"sort": {
+		Args:   []models.FuncType{models.TypeNumberSet, models.TypeString},
+		Return: models.TypeNumberSet,
+		Tags:   tagFirst,
+		F:      Sort,
+	},
+	"shift": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeString},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      Shift,
+	},
+	"merge": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		VArgs:  true,
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      Merge,
+	},
+	"month": {
+		Args:   []models.FuncType{models.TypeScalar, models.TypeString},
+		Return: models.TypeScalar,
+		F:      Month,
+	},
+	"timedelta": {
+		Args:   []models.FuncType{models.TypeSeriesSet},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      TimeDelta,
+	},
+	"map": {
+		Args:   []models.FuncType{models.TypeSeriesSet, models.TypeExpr},
+		Return: models.TypeSeriesSet,
+		Tags:   tagFirst,
+		F:      Map,
+	},
+	"v": {
+		Return:  models.TypeScalar,
+		F:       V,
+		MapFunc: true,
+	},
 }
 
 func V(e *State, T miniprofiler.Timer) (*Results, error) {
