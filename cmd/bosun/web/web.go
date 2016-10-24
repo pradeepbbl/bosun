@@ -147,7 +147,8 @@ func Listen(listenAddr string, devMode bool, tsdbHost string, reloadFunc func() 
 		if index == "" {
 			index = "annotate"
 		}
-		annotateBackend = backend.NewElastic(schedule.SystemConf.GetAnnotateElasticHosts(), index)
+		c := schedule.SystemConf.GetAnnotateElasticHosts()
+		annotateBackend = backend.NewElastic(c.Hosts, c.SimpleClient, c.ClientOptionFuncs, index)
 
 		go func() {
 			for {
