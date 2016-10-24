@@ -234,14 +234,28 @@ func ESLTE(e *State, T miniprofiler.Timer, key string, lte float64) (*Results, e
 // ElasticHosts is an array of Logstash hosts and exists as a type for something to attach
 // methods to.  The elasticsearch library will use the listed to hosts to discover all
 // of the hosts in the config
-type ElasticHosts []string
+// type ElasticHosts []string
+type ElasticHosts struct {
+	Hosts             []string
+	SimpleClient      bool
+	ClientOptionFuncs []elastic.ClientOptionFunc
+}
 
 // InitClient sets up the elastic client. If the client has already been
 // initalized it is a noop
 func (e ElasticHosts) InitClient() error {
 	if esClient == nil {
 		var err error
-		esClient, err = elastic.NewClient(elastic.SetURL(e...), elastic.SetMaxRetries(10))
+		if e.SimpleClient {
+			// simple client enabled
+			esClient, err = elastic.NewSimpleClient(elastic.SetURL(e.Hosts...), elastic.SetMaxRetries(10))
+		} else if len(e.Hosts) == 0 {
+			// client option enabled
+			esClient, err = elastic.NewClient(e.ClientOptionFuncs...)
+		} else {
+			// default behavior
+			esClient, err = elastic.NewClient(elastic.SetURL(e.Hosts...), elastic.SetMaxRetries(10))
+		}
 		if err != nil {
 			return err
 		}

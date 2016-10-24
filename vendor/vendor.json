@@ -265,16 +265,19 @@
 			"revisionTime": "2015-11-22T20:06:43-07:00"
 		},
 		{
+			"checksumSHA1": "jx1hiVjE68LP+EMqgSiOJ5udPCQ=",
 			"path": "github.com/bosun-monitor/annotate",
 			"revision": "aaf0bbfced111be924ca14fd4cf79fb2aa9ba95a",
 			"revisionTime": "2016-10-15T11:00:20-04:00"
 		},
 		{
+			"checksumSHA1": "/N7Fn2S5O4gcqloH5fdkGzJ3Gas=",
 			"path": "github.com/bosun-monitor/annotate/backend",
 			"revision": "aaf0bbfced111be924ca14fd4cf79fb2aa9ba95a",
 			"revisionTime": "2016-10-15T11:00:20-04:00"
 		},
 		{
+			"checksumSHA1": "GdXtpLoHxfTdgsdgr3XaEmT7eCk=",
 			"path": "github.com/bosun-monitor/annotate/web",
 			"revision": "aaf0bbfced111be924ca14fd4cf79fb2aa9ba95a",
 			"revisionTime": "2016-10-15T11:00:20-04:00"
