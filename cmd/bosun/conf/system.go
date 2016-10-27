@@ -135,6 +135,14 @@ type ElasticConf struct {
 	ClientOptions ESClientOptions
 }
 
+// esConfigType contains switch to ElasticConf and AnnotateConf
+type esConfigType int
+
+const (
+	esConfigAnnotate esConfigType = iota
+	esConfigElastic
+)
+
 // InfluxConf contains configuration for an influx host that Bosun can query
 type InfluxConf struct {
 	URL       URL
@@ -392,7 +400,7 @@ func (sc *SystemConf) GetLogstashElasticHosts() expr.LogstashElasticHosts {
 // GetAnnotateElasticHosts returns the Elastic hosts that should be used for annotations.
 // Annotations are not enabled if this has no hosts
 func (sc *SystemConf) GetAnnotateElasticHosts() expr.ElasticHosts {
-	return parseESConfig(sc, "annotate")
+	return parseESConfig(sc, esConfigAnnotate)
 }
 
 // GetAnnotateIndex returns the name of the Elastic index that should be used for annotations
@@ -466,7 +474,7 @@ func (sc *SystemConf) GetLogstashContext() expr.LogstashElasticHosts {
 // GetElasticContext returns an Elastic context which contains all the information
 // needed to run Elastic queries.
 func (sc *SystemConf) GetElasticContext() expr.ElasticHosts {
-	return parseESConfig(sc, "elastic")
+	return parseESConfig(sc, esConfigElastic)
 }
 
 // AnnotateEnabled returns if annotations have been enabled or not
@@ -512,116 +520,87 @@ func (u *URL) UnmarshalText(text []byte) error {
 }
 
 // ParseESConfig return expr.ElasticHost
-func parseESConfig(sc *SystemConf, config string) expr.ElasticHosts {
+func parseESConfig(sc *SystemConf, config esConfigType) expr.ElasticHosts {
 	var options ESClientOptions
-	es_conf := expr.ElasticHosts{}
-	if config == "annotate" {
-		options = sc.AnnotateConf.ClientOptions
-		if !options.Enabled {
-			es_conf.SimpleClient = sc.AnnotateConf.SimpleClient
-			es_conf.Hosts = sc.AnnotateConf.Hosts
-			return es_conf
-		}
+	esConf := expr.ElasticHosts{}
+
+	addClientOptions := func(item elastic.ClientOptionFunc) {
+		esConf.ClientOptionFuncs = append(esConf.ClientOptionFuncs, item)
 	}
 
-	if config == "elastic" {
+	switch config {
+	case esConfigAnnotate:
+		options = sc.AnnotateConf.ClientOptions
+
+		if !options.Enabled {
+			esConf.SimpleClient = sc.AnnotateConf.SimpleClient
+			esConf.Hosts = sc.AnnotateConf.Hosts
+			return esConf
+		}
+
+		// SetURL
+		addClientOptions(elastic.SetURL(sc.AnnotateConf.Hosts...))
+
+	case esConfigElastic:
 		options = sc.ElasticConf.ClientOptions
 
 		if !options.Enabled {
-			es_conf.SimpleClient = sc.ElasticConf.SimpleClient
-			es_conf.Hosts = sc.ElasticConf.Hosts
-			return es_conf
+			esConf.SimpleClient = sc.ElasticConf.SimpleClient
+			esConf.Hosts = sc.ElasticConf.Hosts
+			return esConf
 		}
+
+		// SetURL
+		addClientOptions(elastic.SetURL(sc.ElasticConf.Hosts...))
 	}
 
-	if options.Enabled {
-		//SetURL
-		es_conf.ClientOptionFuncs = append(
-			es_conf.ClientOptionFuncs,
-			elastic.SetURL(sc.ElasticConf.Hosts...),
-		)
-
-		if options.BasicAuthUsername != "" && options.BasicAuthPassword != "" {
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetBasicAuth(options.BasicAuthUsername, options.BasicAuthPassword),
-			)
-		}
-
-		if options.Scheme == "https" {
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetScheme(options.Scheme),
-			)
-		}
-
-		// Default Enable
-		es_conf.ClientOptionFuncs = append(
-			es_conf.ClientOptionFuncs,
-			elastic.SetSniff(options.SnifferEnabled),
-		)
-
-		if options.SnifferTimeoutStartup > 5 {
-			options.SnifferTimeoutStartup = options.SnifferTimeoutStartup * time.Second
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetSnifferTimeoutStartup(options.SnifferTimeoutStartup),
-			)
-		}
-
-		if options.SnifferTimeout > 2 {
-			options.SnifferTimeout = options.SnifferTimeout * time.Second
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetSnifferTimeout(options.SnifferTimeout),
-			)
-		}
-
-		if options.SnifferInterval > 15 {
-			options.SnifferInterval = options.SnifferInterval * time.Minute
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetSnifferInterval(options.SnifferTimeout),
-			)
-		}
-
-		//Default Enable
-		es_conf.ClientOptionFuncs = append(
-			es_conf.ClientOptionFuncs,
-			elastic.SetHealthcheck(options.HealthcheckEnabled),
-		)
-
-		if options.HealthcheckTimeoutStartup > 5 {
-			options.HealthcheckTimeoutStartup = options.HealthcheckTimeoutStartup * time.Second
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetHealthcheckTimeoutStartup(options.HealthcheckTimeoutStartup),
-			)
-		}
-
-		if options.HealthcheckTimeout > 1 {
-			options.HealthcheckTimeout = options.HealthcheckTimeout * time.Second
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetHealthcheckTimeout(options.HealthcheckTimeout),
-			)
-		}
-
-		if options.HealthcheckInterval > 60 {
-			options.HealthcheckInterval = options.HealthcheckInterval * time.Second
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetHealthcheckInterval(options.HealthcheckInterval),
-			)
-		}
-
-		if options.MaxRetries > 0 {
-			es_conf.ClientOptionFuncs = append(
-				es_conf.ClientOptionFuncs,
-				elastic.SetMaxRetries(options.MaxRetries),
-			)
-		}
+	if options.BasicAuthUsername != "" && options.BasicAuthPassword != "" {
+		addClientOptions(elastic.SetBasicAuth(options.BasicAuthUsername, options.BasicAuthPassword))
 	}
 
-	return es_conf
+	if options.Scheme == "https" {
+		addClientOptions(elastic.SetScheme(options.Scheme))
+	}
+
+	// Default Enable
+	addClientOptions(elastic.SetSniff(options.SnifferEnabled))
+
+	if options.SnifferTimeoutStartup > 5 {
+		options.SnifferTimeoutStartup = options.SnifferTimeoutStartup * time.Second
+		addClientOptions(elastic.SetSnifferTimeoutStartup(options.SnifferTimeoutStartup))
+	}
+
+	if options.SnifferTimeout > 2 {
+		options.SnifferTimeout = options.SnifferTimeout * time.Second
+		addClientOptions(elastic.SetSnifferTimeout(options.SnifferTimeout))
+	}
+
+	if options.SnifferInterval > 15 {
+		options.SnifferInterval = options.SnifferInterval * time.Minute
+		addClientOptions(elastic.SetSnifferInterval(options.SnifferTimeout))
+	}
+
+	//Default Enable
+	addClientOptions(elastic.SetHealthcheck(options.HealthcheckEnabled))
+
+	if options.HealthcheckTimeoutStartup > 5 {
+		options.HealthcheckTimeoutStartup = options.HealthcheckTimeoutStartup * time.Second
+		addClientOptions(elastic.SetHealthcheckTimeoutStartup(options.HealthcheckTimeoutStartup))
+	}
+
+	if options.HealthcheckTimeout > 1 {
+		options.HealthcheckTimeout = options.HealthcheckTimeout * time.Second
+		addClientOptions(elastic.SetHealthcheckTimeout(options.HealthcheckTimeout))
+	}
+
+	if options.HealthcheckInterval > 60 {
+		options.HealthcheckInterval = options.HealthcheckInterval * time.Second
+		addClientOptions(elastic.SetHealthcheckInterval(options.HealthcheckInterval))
+	}
+
+	if options.MaxRetries > 0 {
+		addClientOptions(elastic.SetMaxRetries(options.MaxRetries))
+	}
+
+	return esConf
 }
