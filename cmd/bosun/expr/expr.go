@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"runtime/debug"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"bosun.org/cmd/bosun/cache"
@@ -52,6 +54,7 @@ type Backends struct {
 	GraphiteContext graphite.Context
 	LogstashHosts   LogstashElasticHosts
 	ElasticHosts    ElasticHosts
+	ElasticConfig   ElasticConfig
 	InfluxConfig    client.Config
 	AnnotateContext annotate.Client
 }
@@ -704,6 +707,24 @@ func uoperate(op string, a float64) (r float64) {
 	return
 }
 
+func (e *State) walkPerfix(node *parse.PrefixNode, T miniprofiler.Timer) *Results {
+	key := strings.TrimPrefix(node.Text, "[")
+	key = strings.TrimSuffix(key, "]")
+	key, _ = strconv.Unquote(key)
+	switch node := node.Arg.(type) {
+	case *parse.FuncNode:
+		// Add PrefixKey if it's an ElasticSearch func (https://bosun.org/expressions#elastic-query-functions)
+		if strings.Contains(node.Name, "es") {
+			slog.Infof("found host prefix %s in elasticsearch func", key)
+			e.ElasticHosts.PerfixKey = key
+		}
+		return e.walk(node, T)
+	default:
+		panic(fmt.Errorf("expr: prefix can only be append to a FuncNode"))
+	}
+	return nil
+}
+
 func (e *State) walkFunc(node *parse.FuncNode, T miniprofiler.Timer) *Results {
 	var res *Results
 	T.Step("func: "+node.Name, func(T miniprofiler.Timer) {
@@ -723,6 +744,8 @@ func (e *State) walkFunc(node *parse.FuncNode, T miniprofiler.Timer) *Results {
 				v = extract(e.walkBinary(t, T))
 			case *parse.ExprNode:
 				v = e.walkExpr(t, T)
+			case *parse.PrefixNode:
+				v = e.walkPerfix(t, T)
 			default:
 				panic(fmt.Errorf("expr: unknown func arg type"))
 			}
@@ -740,6 +763,7 @@ func (e *State) walkFunc(node *parse.FuncNode, T miniprofiler.Timer) *Results {
 			}
 			in = append(in, reflect.ValueOf(v))
 		}
+
 		f := reflect.ValueOf(node.F.F)
 		fr := f.Call(append([]reflect.Value{reflect.ValueOf(e), reflect.ValueOf(T)}, in...))
 		res = fr[0].Interface().(*Results)

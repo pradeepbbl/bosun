@@ -59,6 +59,7 @@ const (
 	itemTripleQuotedString
 	itemPow // '**'
 	itemExpr
+	itemPrefix // [prefix]
 )
 
 const eof = -1
@@ -183,6 +184,8 @@ Loop:
 			l.emit(itemLeftParen)
 		case r == ')':
 			l.emit(itemRightParen)
+		case r == '[':
+			return lexPrefix
 		case r == '"':
 			return lexString
 		case r == '\'':
@@ -297,6 +300,18 @@ func lexString(l *lexer) stateFn {
 			return lexItem
 		case eof:
 			return l.errorf("unterminated string")
+		}
+	}
+}
+
+func lexPrefix(l *lexer) stateFn {
+	for {
+		switch l.next() {
+		case ']':
+			l.emit(itemPrefix)
+			return lexItem
+		case eof:
+			return l.errorf("unterminated prefix")
 		}
 	}
 }

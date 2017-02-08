@@ -122,6 +122,8 @@ func (f FuncType) String() string {
 		return "numberexpr"
 	case TypeSeriesExpr:
 		return "seriesexpr"
+	case TypePrefix:
+		return "prefix"
 	case TypeTable:
 		return "table"
 	default:
@@ -131,6 +133,7 @@ func (f FuncType) String() string {
 
 const (
 	TypeString FuncType = iota
+	TypePrefix
 	TypeScalar
 	TypeNumberSet
 	TypeSeriesSet

@@ -41,7 +41,7 @@ type SystemConf struct {
 	OpenTSDBConf OpenTSDBConf
 	GraphiteConf GraphiteConf
 	InfluxConf   InfluxConf
-	ElasticConf  ElasticConf
+	ElasticConf  map[string]ElasticConf
 	LogStashConf LogStashConf
 
 	AnnotateConf AnnotateConf
@@ -74,7 +74,7 @@ func (sc *SystemConf) EnabledBackends() EnabledBackends {
 	b.Graphite = sc.GraphiteConf.Host != ""
 	b.Influx = sc.InfluxConf.URL.URL != nil && sc.InfluxConf.URL.Host != ""
 	b.Logstash = len(sc.LogStashConf.Hosts) != 0
-	b.Elastic = len(sc.ElasticConf.Hosts) != 0
+	b.Elastic = len(sc.ElasticConf["default"].Hosts) != 0
 	b.Annotate = len(sc.AnnotateConf.Hosts) != 0
 	return b
 }
@@ -138,10 +138,10 @@ type ElasticConf struct {
 // esConfigType contains switch to ElasticConf and AnnotateConf
 type esConfigType int
 
-const (
-	esConfigAnnotate esConfigType = iota
-	esConfigElastic
-)
+// const (
+// 	esConfigAnnotate esConfigType = iota
+// 	esConfigElastic
+// )
 
 // InfluxConf contains configuration for an influx host that Bosun can query
 type InfluxConf struct {
@@ -231,12 +231,18 @@ func loadSystemConfig(conf string, isFileName bool) (*SystemConf, error) {
 	if len(decodeMeta.Undecoded()) > 0 {
 		return sc, fmt.Errorf("undecoded fields in system configuration: %v", decodeMeta.Undecoded())
 	}
-	if sc.ElasticConf.SimpleClient && sc.ElasticConf.ClientOptions.Enabled {
-		return sc, fmt.Errorf("Can't use both ES SimpleClient and ES ClientOptions please remove or disable one in ElasticConf: %#v", sc.ElasticConf)
+
+	// iterate over each hosts
+	for hostPrefix, value := range sc.ElasticConf {
+		if value.SimpleClient && value.ClientOptions.Enabled {
+			return sc, fmt.Errorf("Can't use both ES SimpleClient and ES ClientOptions please remove or disable one in ElasticConf.%s: %#v", hostPrefix, sc.ElasticConf)
+		}
 	}
+
 	if sc.AnnotateConf.SimpleClient && sc.AnnotateConf.ClientOptions.Enabled {
 		return sc, fmt.Errorf("Can't use both ES SimpleClient and ES ClientOptions please remove or disable one in AnnotateConf: %#v", sc.AnnotateConf)
 	}
+
 	sc.md = decodeMeta
 	return sc, nil
 }
@@ -399,8 +405,8 @@ func (sc *SystemConf) GetLogstashElasticHosts() expr.LogstashElasticHosts {
 
 // GetAnnotateElasticHosts returns the Elastic hosts that should be used for annotations.
 // Annotations are not enabled if this has no hosts
-func (sc *SystemConf) GetAnnotateElasticHosts() expr.ElasticHosts {
-	return parseESConfig(sc, esConfigAnnotate)
+func (sc *SystemConf) GetAnnotateElasticHosts() expr.ElasticConfig {
+	return parseESAnnoteConfig(sc)
 }
 
 // GetAnnotateIndex returns the name of the Elastic index that should be used for annotations
@@ -474,7 +480,7 @@ func (sc *SystemConf) GetLogstashContext() expr.LogstashElasticHosts {
 // GetElasticContext returns an Elastic context which contains all the information
 // needed to run Elastic queries.
 func (sc *SystemConf) GetElasticContext() expr.ElasticHosts {
-	return parseESConfig(sc, esConfigElastic)
+	return parseESConfig(sc)
 }
 
 // AnnotateEnabled returns if annotations have been enabled or not
@@ -520,39 +526,106 @@ func (u *URL) UnmarshalText(text []byte) error {
 }
 
 // ParseESConfig return expr.ElasticHost
-func parseESConfig(sc *SystemConf, config esConfigType) expr.ElasticHosts {
+func parseESConfig(sc *SystemConf) expr.ElasticHosts {
 	var options ESClientOptions
-	esConf := expr.ElasticHosts{}
+	esConf := expr.ElasticConfig{}
+	store := make(map[string]expr.ElasticConfig)
+	esHost := expr.ElasticHosts{}
 
 	addClientOptions := func(item elastic.ClientOptionFunc) {
 		esConf.ClientOptionFuncs = append(esConf.ClientOptionFuncs, item)
 	}
 
-	switch config {
-	case esConfigAnnotate:
-		options = sc.AnnotateConf.ClientOptions
+	for hostPrefix, value := range sc.ElasticConf {
+		options = value.ClientOptions
 
 		if !options.Enabled {
-			esConf.SimpleClient = sc.AnnotateConf.SimpleClient
-			esConf.Hosts = sc.AnnotateConf.Hosts
-			return esConf
+			esConf.SimpleClient = value.SimpleClient
+			esConf.Hosts = value.Hosts
+			store[hostPrefix] = esConf
+		} else {
+			// SetURL
+			esConf.Hosts = []string{""}
+			esConf.SimpleClient = false
+			addClientOptions(elastic.SetURL(value.Hosts...))
+
+			if options.BasicAuthUsername != "" && options.BasicAuthPassword != "" {
+				addClientOptions(elastic.SetBasicAuth(options.BasicAuthUsername, options.BasicAuthPassword))
+			}
+
+			if options.Scheme == "https" {
+				addClientOptions(elastic.SetScheme(options.Scheme))
+			}
+
+			// Default Enable
+			addClientOptions(elastic.SetSniff(options.SnifferEnabled))
+
+			if options.SnifferTimeoutStartup > 5 {
+				options.SnifferTimeoutStartup = options.SnifferTimeoutStartup * time.Second
+				addClientOptions(elastic.SetSnifferTimeoutStartup(options.SnifferTimeoutStartup))
+			}
+
+			if options.SnifferTimeout > 2 {
+				options.SnifferTimeout = options.SnifferTimeout * time.Second
+				addClientOptions(elastic.SetSnifferTimeout(options.SnifferTimeout))
+			}
+
+			if options.SnifferInterval > 15 {
+				options.SnifferInterval = options.SnifferInterval * time.Minute
+				addClientOptions(elastic.SetSnifferInterval(options.SnifferTimeout))
+			}
+
+			//Default Enable
+			addClientOptions(elastic.SetHealthcheck(options.HealthcheckEnabled))
+
+			if options.HealthcheckTimeoutStartup > 5 {
+				options.HealthcheckTimeoutStartup = options.HealthcheckTimeoutStartup * time.Second
+				addClientOptions(elastic.SetHealthcheckTimeoutStartup(options.HealthcheckTimeoutStartup))
+			}
+
+			if options.HealthcheckTimeout > 1 {
+				options.HealthcheckTimeout = options.HealthcheckTimeout * time.Second
+				addClientOptions(elastic.SetHealthcheckTimeout(options.HealthcheckTimeout))
+			}
+
+			if options.HealthcheckInterval > 60 {
+				options.HealthcheckInterval = options.HealthcheckInterval * time.Second
+				addClientOptions(elastic.SetHealthcheckInterval(options.HealthcheckInterval))
+			}
+
+			if options.MaxRetries > 0 {
+				addClientOptions(elastic.SetMaxRetries(options.MaxRetries))
+			}
+
+			store[hostPrefix] = esConf
 		}
 
-		// SetURL
-		addClientOptions(elastic.SetURL(sc.AnnotateConf.Hosts...))
-
-	case esConfigElastic:
-		options = sc.ElasticConf.ClientOptions
-
-		if !options.Enabled {
-			esConf.SimpleClient = sc.ElasticConf.SimpleClient
-			esConf.Hosts = sc.ElasticConf.Hosts
-			return esConf
-		}
-
-		// SetURL
-		addClientOptions(elastic.SetURL(sc.ElasticConf.Hosts...))
+		esHost.Hosts = store
+		esHost.Keys = append(esHost.Keys, hostPrefix)
 	}
+
+	return esHost
+}
+
+// ParseESConfig return expr.ElasticHost
+func parseESAnnoteConfig(sc *SystemConf) expr.ElasticConfig {
+	var options ESClientOptions
+	esConf := expr.ElasticConfig{}
+
+	addClientOptions := func(item elastic.ClientOptionFunc) {
+		esConf.ClientOptionFuncs = append(esConf.ClientOptionFuncs, item)
+	}
+
+	options = sc.AnnotateConf.ClientOptions
+
+	if !options.Enabled {
+		esConf.SimpleClient = sc.AnnotateConf.SimpleClient
+		esConf.Hosts = sc.AnnotateConf.Hosts
+		return esConf
+	}
+
+	// SetURL
+	addClientOptions(elastic.SetURL(sc.AnnotateConf.Hosts...))
 
 	if options.BasicAuthUsername != "" && options.BasicAuthPassword != "" {
 		addClientOptions(elastic.SetBasicAuth(options.BasicAuthUsername, options.BasicAuthPassword))
@@ -603,4 +676,5 @@ func parseESConfig(sc *SystemConf, config esConfigType) expr.ElasticHosts {
 	}
 
 	return esConf
+
 }

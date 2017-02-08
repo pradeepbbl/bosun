@@ -9,6 +9,7 @@ import (
 	"bosun.org/cmd/bosun/expr/parse"
 	"bosun.org/models"
 	"bosun.org/opentsdb"
+	"bosun.org/slog"
 	"github.com/MiniProfiler/go/miniprofiler"
 	"github.com/jinzhu/now"
 	elastic "gopkg.in/olivere/elastic.v3"
@@ -240,6 +241,12 @@ func ESLTE(e *State, T miniprofiler.Timer, key string, lte float64) (*Results, e
 // of the hosts in the config
 // type ElasticHosts []string
 type ElasticHosts struct {
+	Hosts     map[string]ElasticConfig
+	PerfixKey string
+	Keys      []string
+}
+
+type ElasticConfig struct {
 	Hosts             []string
 	SimpleClient      bool
 	ClientOptionFuncs []elastic.ClientOptionFunc
@@ -248,28 +255,38 @@ type ElasticHosts struct {
 // InitClient sets up the elastic client. If the client has already been
 // initalized it is a noop
 func (e ElasticHosts) InitClient() error {
-	if esClient == nil {
-		var err error
-		if e.SimpleClient {
-			// simple client enabled
-			esClient, err = elastic.NewSimpleClient(elastic.SetURL(e.Hosts...), elastic.SetMaxRetries(10))
-		} else if len(e.Hosts) == 0 {
-			// client option enabled
-			esClient, err = elastic.NewClient(e.ClientOptionFuncs...)
-		} else {
-			// default behavior
-			esClient, err = elastic.NewClient(elastic.SetURL(e.Hosts...), elastic.SetMaxRetries(10))
-		}
-		if err != nil {
-			return err
-		}
+	// check if prefix key null set to default
+	if e.PerfixKey == "" {
+		e.PerfixKey = "default"
 	}
+
+	var err error
+
+	slog.Infof("es prefix key found connecting to host: %s", e.Hosts[e.PerfixKey])
+	if e.Hosts[e.PerfixKey].SimpleClient {
+		// simple client enabled
+		esClient, err = elastic.NewSimpleClient(elastic.SetURL(e.Hosts[e.PerfixKey].Hosts...), elastic.SetMaxRetries(10))
+	} else if len(e.Hosts[e.PerfixKey].Hosts) == 0 {
+		// client option enabled
+		esClient, err = elastic.NewClient(e.Hosts[e.PerfixKey].ClientOptionFuncs...)
+	} else {
+		// default behavior
+		esClient, err = elastic.NewClient(elastic.SetURL(e.Hosts[e.PerfixKey].Hosts...), elastic.SetMaxRetries(10))
+	}
+
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // getService returns an elasticsearch service based on the global client
 func (e *ElasticHosts) getService() (*elastic.SearchService, error) {
+	slog.Infof("Keys: %s", e.Keys)
+
 	err := e.InitClient()
+
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +303,9 @@ func (e ElasticHosts) Query(r *ElasticRequest) (*elastic.SearchResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	s.Index(r.Indices...)
+
 	// With IgnoreUnavailable there can be gaps in the indices (i.e. missing days) and we will not error
 	// If no indices match than there will be no successful shards and and error is returned in that case
 	s.IgnoreUnavailable(true)
@@ -323,6 +342,7 @@ func (r *ElasticRequest) CacheKey() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to generate json representation of search source for cache key: %s", s)
 	}
+
 	return fmt.Sprintf("%v\n%s", r.Indices, b), nil
 }
 
