@@ -8,12 +8,13 @@
 package parse // import "bosun.org/cmd/bosun/expr/parse"
 
 import (
-	"bosun.org/models"
 	"fmt"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+
+	"bosun.org/models"
 )
 
 // Tree is the representation of a single parsed expression.

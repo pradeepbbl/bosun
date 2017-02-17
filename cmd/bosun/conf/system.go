@@ -135,14 +135,6 @@ type ElasticConf struct {
 	ClientOptions ESClientOptions
 }
 
-// esConfigType contains switch to ElasticConf and AnnotateConf
-type esConfigType int
-
-// const (
-// 	esConfigAnnotate esConfigType = iota
-// 	esConfigElastic
-// )
-
 // InfluxConf contains configuration for an influx host that Bosun can query
 type InfluxConf struct {
 	URL       URL
@@ -545,8 +537,6 @@ func parseESConfig(sc *SystemConf) expr.ElasticHosts {
 			store[hostPrefix] = esConf
 		} else {
 			// SetURL
-			esConf.Hosts = []string{""}
-			esConf.SimpleClient = false
 			addClientOptions(elastic.SetURL(value.Hosts...))
 
 			if options.BasicAuthUsername != "" && options.BasicAuthPassword != "" {

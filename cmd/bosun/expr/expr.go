@@ -707,7 +707,7 @@ func uoperate(op string, a float64) (r float64) {
 	return
 }
 
-func (e *State) walkPerfix(node *parse.PrefixNode, T miniprofiler.Timer) *Results {
+func (e *State) walkPrefix(node *parse.PrefixNode, T miniprofiler.Timer) *Results {
 	key := strings.TrimPrefix(node.Text, "[")
 	key = strings.TrimSuffix(key, "]")
 	key, _ = strconv.Unquote(key)
@@ -716,7 +716,7 @@ func (e *State) walkPerfix(node *parse.PrefixNode, T miniprofiler.Timer) *Result
 		// Add PrefixKey if it's an ElasticSearch func (https://bosun.org/expressions#elastic-query-functions)
 		if strings.Contains(node.Name, "es") {
 			slog.Infof("found host prefix %s in elasticsearch func", key)
-			e.ElasticHosts.PerfixKey = key
+			e.ElasticHosts.PrefixKey = key
 		}
 		return e.walk(node, T)
 	default:
@@ -745,7 +745,7 @@ func (e *State) walkFunc(node *parse.FuncNode, T miniprofiler.Timer) *Results {
 			case *parse.ExprNode:
 				v = e.walkExpr(t, T)
 			case *parse.PrefixNode:
-				v = e.walkPerfix(t, T)
+				v = e.walkPrefix(t, T)
 			default:
 				panic(fmt.Errorf("expr: unknown func arg type"))
 			}

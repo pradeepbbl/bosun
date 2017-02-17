@@ -242,7 +242,7 @@ func ESLTE(e *State, T miniprofiler.Timer, key string, lte float64) (*Results, e
 // type ElasticHosts []string
 type ElasticHosts struct {
 	Hosts     map[string]ElasticConfig
-	PerfixKey string
+	PrefixKey string
 	Keys      []string
 }
 
@@ -256,22 +256,22 @@ type ElasticConfig struct {
 // initalized it is a noop
 func (e ElasticHosts) InitClient() error {
 	// check if prefix key null set to default
-	if e.PerfixKey == "" {
-		e.PerfixKey = "default"
+	if e.PrefixKey == "" {
+		e.PrefixKey = "default"
 	}
 
 	var err error
 
-	slog.Infof("es prefix key found connecting to host: %s", e.Hosts[e.PerfixKey])
-	if e.Hosts[e.PerfixKey].SimpleClient {
+	slog.Infof("es prefix key found connecting to host: %s", e.Hosts[e.PrefixKey])
+	if e.Hosts[e.PrefixKey].SimpleClient {
 		// simple client enabled
-		esClient, err = elastic.NewSimpleClient(elastic.SetURL(e.Hosts[e.PerfixKey].Hosts...), elastic.SetMaxRetries(10))
-	} else if len(e.Hosts[e.PerfixKey].Hosts) == 0 {
+		esClient, err = elastic.NewSimpleClient(elastic.SetURL(e.Hosts[e.PrefixKey].Hosts...), elastic.SetMaxRetries(10))
+	} else if len(e.Hosts[e.PrefixKey].Hosts) == 0 {
 		// client option enabled
-		esClient, err = elastic.NewClient(e.Hosts[e.PerfixKey].ClientOptionFuncs...)
+		esClient, err = elastic.NewClient(e.Hosts[e.PrefixKey].ClientOptionFuncs...)
 	} else {
 		// default behavior
-		esClient, err = elastic.NewClient(elastic.SetURL(e.Hosts[e.PerfixKey].Hosts...), elastic.SetMaxRetries(10))
+		esClient, err = elastic.NewClient(elastic.SetURL(e.Hosts[e.PrefixKey].Hosts...), elastic.SetMaxRetries(10))
 	}
 
 	if err != nil {
@@ -283,8 +283,6 @@ func (e ElasticHosts) InitClient() error {
 
 // getService returns an elasticsearch service based on the global client
 func (e *ElasticHosts) getService() (*elastic.SearchService, error) {
-	slog.Infof("Keys: %s", e.Keys)
-
 	err := e.InitClient()
 
 	if err != nil {

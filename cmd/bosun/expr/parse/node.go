@@ -316,12 +316,14 @@ func (p *PrefixNode) StringAST() string {
 }
 
 func (p *PrefixNode) Check(t *Tree) error {
-	switch rt := p.Arg.Return(); rt {
-	case models.TypeSeriesSet:
-		return p.Arg.Check(t)
-	default:
-		return fmt.Errorf("parse: type error in %s, expected %s, got %s", p, "number", rt)
+	rt := p.Arg.Return()
+
+	if !(rt == models.TypeSeriesSet) {
+		return fmt.Errorf("parse: type error in %s, expected %s, got %s", p, "prefix", rt)
 	}
+
+	return p.Arg.Check(t)
+
 }
 
 func (p *PrefixNode) Return() models.FuncType {
