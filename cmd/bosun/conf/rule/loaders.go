@@ -15,6 +15,7 @@ import (
 	eparse "bosun.org/cmd/bosun/expr/parse"
 	"bosun.org/models"
 	"bosun.org/opentsdb"
+	"bosun.org/slog"
 )
 
 func (c *Conf) loadTemplate(s *parse.SectionNode) {
