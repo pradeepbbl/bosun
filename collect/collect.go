@@ -369,6 +369,23 @@ func Add(metric string, ts opentsdb.TagSet, inc int64) error {
 	return nil
 }
 
+func Get(metric string, ts opentsdb.TagSet) int64 {
+	if err := check(metric, &ts); err != nil {
+		slog.Infof("missing metrics")
+		return 0
+	}
+
+	defer mlock.Unlock()
+
+	tss := metric + ts.String()
+	mlock.Lock()
+	if counters[tss] != nil {
+		return counters[tss].value
+	} else {
+		return 0
+	}
+}
+
 type putMetric struct {
 	metric string
 	ts     opentsdb.TagSet

@@ -446,10 +446,14 @@ func Shorten(_ miniprofiler.Timer, w http.ResponseWriter, r *http.Request) (inte
 
 type Health struct {
 	// RuleCheck is true if last check happened within the check frequency window.
-	RuleCheck     bool
-	Quiet         bool
-	UptimeSeconds int64
-	StartEpoch    int64
+	RuleCheck                bool
+	Quiet                    bool
+	UptimeSeconds            int64
+	StartEpoch               int64
+	PostNotificationsSent    int64
+	PostNotificationsFailed  int64
+	EmailNotificationsSent   int64
+	EmailNotificationsFailed int64
 }
 
 func Reload(t miniprofiler.Timer, w http.ResponseWriter, r *http.Request) (interface{}, error) {
@@ -481,6 +485,10 @@ func HealthCheck(t miniprofiler.Timer, w http.ResponseWriter, r *http.Request) (
 	h.Quiet = schedule.GetQuiet()
 	h.UptimeSeconds = int64(time.Since(startTime).Seconds())
 	h.StartEpoch = startTime.Unix()
+	h.PostNotificationsSent = collect.Get("post.sent", nil)
+	h.PostNotificationsFailed = collect.Get("post.sent_failed", nil)
+	h.EmailNotificationsSent = collect.Get("email.sent", nil)
+	h.EmailNotificationsFailed = collect.Get("email.sent_failed", nil)
 	return h, nil
 }
 
