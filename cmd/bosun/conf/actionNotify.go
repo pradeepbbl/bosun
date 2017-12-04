@@ -53,6 +53,12 @@ func (a ActionNotificationContext) IncidentLink(i int64) string {
 	})
 }
 
+func (c ActionNotificationContext) RemoveQuotes(s string) string {
+	re := regexp.MustCompile(`\"`)
+	sub := ``
+	return re.ReplaceAllString(s, sub)
+}
+
 // NotifyAction should be used for action notifications.
 func (n *Notification) NotifyAction(at models.ActionType, t *Template, c SystemConfProvider, states []*models.IncidentState, user, message string) {
 	go n.PrepareAction(at, t, c, states, user, message).Send(c)
@@ -87,6 +93,12 @@ func (n *Notification) PrepareAction(at models.ActionType, t *Template, c System
 			key = "default"
 		}
 		buf.Reset()
+
+		// replace new line with \r as per json spec
+		re := regexp.MustCompile(`\n`)
+		substitution := `\r`
+		message = re.ReplaceAllString(message, substitution)
+
 		ctx := ActionNotificationContext{
 			States:     states,
 			User:       user,

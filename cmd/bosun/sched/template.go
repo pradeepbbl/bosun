@@ -688,3 +688,9 @@ func (c *Context) ESQueryAll(indexRoot expr.ESIndexer, filter expr.ESQuery, sdur
 	}
 	return r
 }
+
+func (c *Context) RemoveQuotes(s string) string {
+	re := regexp.MustCompile(`\"`)
+	sub := ``
+	return re.ReplaceAllString(s, sub)
+}
